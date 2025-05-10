@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>ক্লায়েন্ট তথ্য ফরম</title>
+<style>
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f0f4f8;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding: 20px 10px;
+  }
+  .container {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 14px 28px rgba(0,0,0,0.12);
+    padding: 22px 26px 32px;
+    width: 100%;
+    max-width: 350px;
+  }
+  h1 {
+    font-size: 1.5rem;
+    color: #2c3e50;
+    margin-bottom: 22px;
+    text-align: center;
+  }
+  label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    font-size: 0.96rem;
+    color: #34495e;
+  }
+  input[type="text"],
+  textarea {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 1rem;
+    border: 2px solid #ccc;
+    border-radius: 10px;
+    transition: border-color 0.3s ease;
+    font-family: inherit;
+    resize: vertical;
+  }
+  input[type="text"]:focus,
+  textarea:focus {
+    outline: none;
+    border-color: #2980b9;
+    box-shadow: 0 0 9px rgba(41, 128, 185, 0.5);
+    background: #eaf6ff;
+  }
+  textarea {
+    min-height: 80px;
+  }
+  .error-message {
+    color: #e74c3c;
+    font-size: 0.85rem;
+    margin-top: 4px;
+    margin-bottom: 12px;
+  }
+  button {
+    width: 100%;
+    background: #3498db;
+    border: none;
+    color: white;
+    font-size: 1.1rem;
+    padding: 12px 0;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 700;
+    transition: background-color 0.3s ease;
+  }
+  button:hover:not(:disabled) {
+    background: #217dbb;
+  }
+  button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .download-button {
+    margin-top: 16px;
+    background: #27ae60;
+  }
+  .download-button:hover {
+    background: #1e8449;
+  }
+  .success-message {
+    margin-top: 14px;
+    color: #27ae60;
+    font-weight: 700;
+    text-align: center;
+  }
+  @media (max-width: 400px) {
+    .container {
+      padding: 18px 20px 28px;
+      max-width: 100%;
+    }
+    h1 {
+      font-size: 1.25rem;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="container" role="main">
+  <h1>ক্লায়েন্ট তথ্য ফরম</h1>
+  <form id="dataForm" novalidate autocomplete="off" aria-label="তথ্য সংগ্রহ ফরম">
+    <label for="name">নাম *</label>
+    <input type="text" id="name" name="name" placeholder="আপনার নাম লিখুন" required aria-required="true" />
+    <div class="error-message" id="error-name"></div>
+
+    <label for="phone">ফোন নম্বর *</label>
+    <input type="text" id="phone" name="phone" placeholder="মোবাইল নম্বর লিখুন (যেমন: +8801XXXXXXXXX)" pattern="^\+?\d{7,15}$" required aria-required="true" />
+    <div class="error-message" id="error-phone"></div>
+
+    <label for="address">ঠিকানা *</label>
+    <input type="text" id="address" name="address" placeholder="আপনার ঠিকানা লিখুন" required aria-required="true" />
+    <div class="error-message" id="error-address"></div>
+
+    <label for="reference">রেফারেন্স</label>
+    <input type="text" id="reference" name="reference" placeholder="রেফারেন্স (ঐচ্ছিক)" />
+    <div class="error-message" id="error-reference"></div>
+
+    <label for="comments">মতামত</label>
+    <textarea id="comments" name="comments" placeholder="আপনার মতামত লিখুন (ঐচ্ছিক)"></textarea>
+
+    <button type="submit" id="submitBtn">সাবমিট করুন</button>
+  </form>
+  <button id="downloadCSVBtn" class="download-button" style="display:none;" aria-label="এক্সেল ফাইলে ডাউনলোড করুন">এক্সেল ফাইলে ডাউনলোড করুন</button>
+  <div class="success-message" id="successMsg" role="status" aria-live="polite"></div>
+</div>
+<script>
+  (function(){
+    const form = document.getElementById('dataForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const downloadBtn = document.getElementById('downloadCSVBtn');
+    const successMsg = document.getElementById('successMsg');
+
+    const submissions = [];
+
+    function validateName(name) {
+      return name.trim().length > 0;
+    }
+    function validatePhone(phone) {
+      const re = /^\+?\d{7,15}$/;
+      return re.test(phone.trim());
+    }
+    function validateAddress(address) {
+      return address.trim().length > 0;
+    }
+
+    function showError(id, msg) {
+      document.getElementById(id).textContent = msg;
+    }
+
+    function clearErrors() {
+      ['error-name','error-phone','error-address','error-reference'].forEach(id => {
+        showError(id, '');
+      });
+      successMsg.textContent = '';
+    }
+
+    function escapeCSV(value) {
+      if(value==null) return '';
+      value = value.toString();
+      if(value.includes('"') || value.includes(',') || value.includes('\n')) {
+        return '"' + value.replace(/"/g,'""') + '"';
+      }
+      return value;
+    }
+
+    function generateCSV(data) {
+      const header = ['নাম', 'ফোন নম্বর', 'ঠিকানা', 'রেফারেন্স', 'মতামত'];
+      const rows = data.map(row => [
+        escapeCSV(row.name),
+        escapeCSV(row.phone),
+        escapeCSV(row.address),
+        escapeCSV(row.reference),
+        escapeCSV(row.comments)
+      ]);
+      const csvContent = [header, ...rows].map(e => e.join(',')).join('\r\n');
+      return csvContent;
+    }
+
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      clearErrors();
+
+      const name = form.name.value;
+      const phone = form.phone.value;
+      const address = form.address.value;
+      const reference = form.reference.value;
+      const comments = form.comments.value;
+
+      let valid = true;
+
+      if(!validateName(name)) {
+        showError('error-name', 'নাম অবশ্যই দিতে হবে।');
+        valid = false;
+      }
+      if(!validatePhone(phone)) {
+        showError('error-phone', 'সঠিক ফোন নম্বর দিন (যেমন: +8801XXXXXXXXX)।');
+        valid = false;
+      }
+      if(!validateAddress(address)) {
+        showError('error-address', 'ঠিকানা অবশ্যই দিতে হবে।');
+        valid = false;
+      }
+
+      if(!valid) return;
+
+      submissions.push({
+        name: name.trim(),
+        phone: phone.trim(),
+        address: address.trim(),
+        reference: reference.trim(),
+        comments: comments.trim()
+      });
+
+      successMsg.textContent = "তথ্য সফলভাবে জমা হয়েছে।";
+      form.reset();
+      downloadBtn.style.display = 'block';
+      form.name.focus();
+    });
+
+    downloadBtn.addEventListener('click', function(){
+      if(submissions.length === 0){
+        alert('কোনো ডেটা ডাউনলোডের জন্য নেই।');
+        return;
+      }
+      const csv = generateCSV(submissions);
+      const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'submission_data.csv';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+
+      setTimeout(()=>{
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+    });
+  })();
+</script>
+</body>
+</html>
